@@ -9,8 +9,8 @@ import torch.nn as nn
 class MultiHeadAttention(nn.Module):
     def __init__(self, d_in, d_out, context_length, dropout, num_heads, qkv_bias=False):
         super().__init__()
-        #确保输入维度能被头数整除,保证每个头能均匀分配特征维度。
-        assert (d_in % num_heads == 0), "d_in must be divisible by num_heads"
+        #确保输出维度能被头数整除,保证每个头能均匀分配特征维度。    
+        assert (d_out % num_heads == 0), "d_out must be divisible by num_heads"
         self.d_out = d_out
         self.num_heads = num_heads
         self.head_dim = d_out // num_heads
@@ -21,7 +21,7 @@ class MultiHeadAttention(nn.Module):
         self.W_value = nn.Linear(d_in, d_out, bias=qkv_bias)
         self.dropout = nn.Dropout(dropout)
         self.out_proj = nn.Linear(d_out, d_out)
-        self.register_buffer("mask", torch.tril(torch.ones(context_length, context_length), diagonal=1))
+        self.register_buffer("mask", torch.triu(torch.ones(context_length, context_length), diagonal=1))
 
 
     # 输入: (2, 3, 4)

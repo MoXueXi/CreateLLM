@@ -8,6 +8,7 @@
 import re
 from CausalAttention import CausalAttention
 from GPTDatasetV1 import GPTDatasetV1
+from MultiHeadAttention import MultiHeadAttention
 from MultiHeadAttentionWrapper import MultiHeadAttentionWrapper
 from NeuralNetwork import NeuralNetwork
 from SimpleTokenizerV1 import SimpleTokenizerV1
@@ -374,6 +375,14 @@ context_length = batch.shape[1]
 d_in = 3
 d_out = 1
 mha = MultiHeadAttentionWrapper(d_in, d_out, context_length, 0.0, num_heads=2)
+context_vec = mha(batch)
+# print(context_vec)
+# print(context_vec.shape)
+
+torch.manual_seed(123)
+batch_size, context_length, d_in = batch.shape
+d_out = 2
+mha = MultiHeadAttention(d_in, d_out, context_length, 0.0, num_heads=2)
 context_vec = mha(batch)
 print(context_vec)
 print(context_vec.shape)
