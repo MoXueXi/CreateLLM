@@ -7,6 +7,9 @@
 
 import re
 from CausalAttention import CausalAttention
+from DummyGPTModel import DummyGPTModel
+from DummyGPTModel import LayerNorm
+
 from GPTDatasetV1 import GPTDatasetV1
 from MultiHeadAttention import MultiHeadAttention
 from MultiHeadAttentionWrapper import MultiHeadAttentionWrapper
@@ -19,6 +22,7 @@ from ToyDataset import ToyDataset
 from torch.utils.data import DataLoader
 import torch.nn.functional as F
 from SelfAttention_v1 import SelfAttention_v1
+import torch.nn as nn
 
 #1、文本预处理
 # print(version("tiktoken"))
@@ -384,6 +388,65 @@ batch_size, context_length, d_in = batch.shape
 d_out = 2
 mha = MultiHeadAttention(d_in, d_out, context_length, 0.0, num_heads=2)
 context_vec = mha(batch)
-print(context_vec)
-print(context_vec.shape)
+# print(context_vec)
+# print(context_vec.shape)
+
+tokenizer = tiktoken.get_encoding("gpt2")
+batch = []
+txt1 = "Every effort moves you"
+txt2 = "Every day holds a"
+batch.append(torch.tensor(tokenizer.encode(txt1)))
+batch.append(torch.tensor(tokenizer.encode(txt2)))
+batch = torch.stack(batch, dim=0)#沿着新维度堆叠多个张量
+# print(batch)
+
+torch.manual_seed(123)
+GPT_CONFIG_124M = {
+    "vocab_size": 50257,     # 词汇表大小
+    "context_length": 1024,  # 上下文长度
+    "emb_dim": 768,          # 嵌入维度
+    "n_heads": 12,           # 注意力头的数量
+    "n_layers": 12,          # 层数
+    "drop_rate": 0.1,        # dropout率
+    "qkv_bias": False        # 查询-键-值偏置
+    }
+model = DummyGPTModel(GPT_CONFIG_124M)
+logits = model(batch)
+# print(logits)
+# print(logits.shape)  
+
+torch.manual_seed(123)
+torch.set_printoptions(sci_mode=False)
+batch_example = torch.randn(2, 5)
+layer = nn.Sequential(
+    nn.Linear(5, 6),
+    nn.ReLU()
+)
+out = layer(batch_example)
+print( "out:", out)
+
+# 数学本质
+# 方差衡量的是数据偏离均值的程度:
+# 1、原始数据: 偏离均值的平均平方距离 = var
+# 2、归一化后: 除以 √var 后: 每个偏离值都被缩小了 √var 倍
+# 3、平方后: 偏离值的平方被缩小了 var 倍
+# 4、结果: 新的方差 = var / var = 1
+mean = out.mean(dim=-1, keepdim=True)#对每一行求均值,保持维度不变
+var = out.var(dim=-1, keepdim=True)#对每一行求方差,保持维度不变
+# print( "mean:", mean)
+# print("var:", var)
+out_norm = (out - mean) / torch.sqrt(var)#对每一行进行归一化
+mean = out_norm.mean(dim=-1, keepdim=True)
+var = out_norm.var(dim=-1, keepdim=True)
+# print( "out_norm:", out_norm)
+# print( "mean:", mean)
+# print("var:", var)
+
+ln = LayerNorm(5)
+out_ln = ln(batch_example)
+mean = out_ln.mean(dim=-1, keepdim=True)
+var = out_ln.var(dim=-1, unbiased=False, keepdim=True)
+print(out_ln)
+print(mean)    
+print(var)
 

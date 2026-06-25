@@ -1,22 +1,13 @@
 import torch
 import torch.nn as nn
 class DummyGPTModel(nn.Module):
-    GPT_CONFIG_124M = {
-    "vocab_size": 50257,     # 词汇表大小
-    "context_length": 1024,  # 上下文长度
-    "emb_dim": 768,          # 嵌入维度
-    "n_heads": 12,           # 注意力头的数量
-    "n_layers": 12,          # 层数
-    "drop_rate": 0.1,        # dropout率
-    "qkv_bias": False        # 查询-键-值偏置
-    }
     def __init__(self, cfg):
         super().__init__()
         self.tok_emb = nn.Embedding(cfg["vocab_size"], cfg["emb_dim"])
         self.pos_emb = nn.Embedding(cfg["context_length"], cfg["emb_dim"])
         self.drop_emb = nn.Dropout(cfg["drop_rate"])
         self.trf_blocks = nn.Sequential(*[DummyTransformerBlock(cfg) for _ in range(cfg["n_layers"])])
-        self.final_norm = DummyLayerNorm(cfg["emb_dim"])
+        self.final_norm = LayerNorm(cfg["emb_dim"])
         self.out_head = nn.Linear(cfg["emb_dim"], cfg["vocab_size"], bias=False)
 
     def forward(self, in_idx):
@@ -44,9 +35,20 @@ class DummyTransformerBlock(nn.Module):
     def forward(self, x):
         return x
     
-class DummyLayerNorm(nn.Module):
-    def __init__(self, normalized_shape, eps=1e-5):
+# 层归一化
+class LayerNorm(nn.Module):
+    def __init__(self, emb_dim):
         super().__init__()
+        self.eps = 1e-5#变量eps是一个小常数(epsilon)，在归一化过程中会被加到方差上以防止除零错误
+        #scale和shift是两个可训练的参数（与输入维度相同）​，如果在训练过程中发现调整它们可以改善模型的训练任务表现，
+        # 那么大语言模型会自动进行调整。这使得模型能够学习适合其数据处理的最佳缩放和偏移。
+        self.scale = nn.Parameter(torch.ones(emb_dim))
+        self.shift = nn.Parameter(torch.zeros(emb_dim))
 
     def forward(self, x):
-        return x
+        mean = x.mean(dim=-1, keepdim=True)
+        #设置unbiased=False,这意味着在方差计算中，我们会使用样本数量n作为方差公式的除数。这种方法没有使用贝塞尔修正。
+        # 贝塞尔修正通常在样本方差的估计中使用n-1作为分母，以调整偏差。
+        var = x.var(dim = -1, keepdim=True, unbiased=False)
+        norm_x = (x - mean) / torch.sqrt(var + self.eps)
+        return self.scale * norm_x + self.shift
